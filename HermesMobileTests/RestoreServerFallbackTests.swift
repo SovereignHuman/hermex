@@ -85,16 +85,14 @@ final class RestoreServerFallbackTests: XCTestCase {
     }
 
     /// The registry fallback honours the server’s kind: a webui server enters
-    /// `.loggedIn`; a Hermes server enters `.loggedOut` when it has no saved
-    /// BotConnection record.
+    /// `.loggedIn` (optimistic); a Hermes server without a saved BotConnection
+    /// enters `.loggedOut`, because `enterActiveServer` checks for a connection record.
     func testRegistryFallbackRespectsServerKind() {
-        // Simulate a Hermes-kind server: in the real app, `kind(of:)` checks the
-        // registry’s `ServerAccount.kind`. For this test, a webui server (the
-        // default kind) suffices to prove the path works — kind-specific behavior
-        // is already tested in `testAHermesServerRestoresSignedInOnlyWhileItsRecordExists`.
         let keychain = InMemoryKeychainStore()
         let registry = ServerRegistry.inMemory(keychain: keychain)
-        registry.activate(url: testServerURL)
+
+        // Activate a Hermes-kind server with no saved BotConnection.
+        registry.activate(url: testServerURL, kind: .hermes)
 
         let manager = AuthManager(
             keychain: keychain,
@@ -103,7 +101,38 @@ final class RestoreServerFallbackTests: XCTestCase {
             hermesConnections: HermesConnections()
         )
 
-        // A webui server recovered from the registry should be loggedIn (optimistic).
+        // A Hermes server recovered from the registry without a BotConnection
+        // should be loggedOut — not optimistically loggedIn like webui.
+        XCTAssertEqual(manager.state, .loggedOut(server: testServerURL))
+    }
+
+    /// A Hermes server recovered from the registry enters `.loggedIn` when a
+    /// BotConnection record IS present in the keychain.
+    func testHermesRegistryFallbackWithConnectionIsLoggedIn() {
+        let keychain = InMemoryKeychainStore()
+        let registry = ServerRegistry.inMemory(keychain: keychain)
+
+        // Activate a Hermes-kind server.
+        registry.activate(url: testServerURL, kind: .hermes)
+
+        // Save a BotConnection for this server so enterActiveServer finds it.
+        let connection = BotConnection(
+            id: UUID(),
+            name: "Test Bot",
+            address: testServerURL,
+            username: "test",
+            password: "test"
+        )
+        try! BotConnectionStore(keychain: keychain).save(connection, server: testServerURL)
+
+        let manager = AuthManager(
+            keychain: keychain,
+            clientFactory: { _ in self.defaultClient },
+            serverRegistry: registry,
+            hermesConnections: HermesConnections()
+        )
+
+        // A Hermes server WITH a saved BotConnection should be loggedIn.
         XCTAssertEqual(manager.state, .loggedIn(server: testServerURL))
     }
 
