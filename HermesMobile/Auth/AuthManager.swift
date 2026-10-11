@@ -622,7 +622,7 @@ final class AuthManager {
         // A webui 401 is never about a Hermes server's own sign-in: a late reply from a
         // webui screen a switch left behind must not sign the Hermes server out (#899).
         if let server = state.server, kind(of: server) == .hermes {
-            authManagerLogger.debug("Ignoring webui 401 for active Hermes server \(server.absoluteString, privacy: .public)")
+            authManagerLogger.debug("Ignoring webui 401 for active Hermes server \(server.absoluteString, privacy: .private)")
             return
         }
 
@@ -750,7 +750,7 @@ final class AuthManager {
         if let registryActive = serverRegistry.activeServer,
            let recoveredURL = URL(string: registryActive.urlString) {
             authManagerLogger.warning(
-                "Keychain server_url missing but ServerRegistry has an active server — recovering from registry (server: \(registryActive.id, privacy: .public))"
+                "Keychain server_url missing but ServerRegistry has an active server — recovering from registry (server: \(registryActive.id, privacy: .private))"
             )
             // Re-persist so the next cold launch finds it on the primary path.
             try? keychain.save(recoveredURL.absoluteString, forKey: .serverURL)
@@ -770,7 +770,7 @@ final class AuthManager {
                 authManagerLogger.notice("No saved server — first launch or fully signed out")
             case .error(let error):
                 authManagerLogger.error(
-                    "Keychain read failed for server_url — treating as unconfigured (error: \(error.localizedDescription, privacy: .public))"
+                    "Keychain read failed for server_url — treating as unconfigured (error: \(error.localizedDescription, privacy: .private))"
                 )
             }
         } else if savedValue == nil {
