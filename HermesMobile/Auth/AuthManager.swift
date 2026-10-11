@@ -761,20 +761,16 @@ final class AuthManager {
 
         // Neither source has a server: check whether this is a Keychain read
         // error (transient, worth logging) or a genuinely empty first launch.
-        if let keychainStore = keychain as? KeychainStore {
-            switch keychainStore.loadWithDiagnostics(.serverURL) {
-            case .value:
+        do {
+            if let _ = try keychain.load(.serverURL) {
                 // Shouldn't reach here — the primary path above would have caught it.
-                break
-            case .missing:
+            } else {
                 authManagerLogger.notice("No saved server — first launch or fully signed out")
-            case .error(let error):
-                authManagerLogger.error(
-                    "Keychain read failed for server_url — treating as unconfigured (error: \(error.localizedDescription, privacy: .private))"
-                )
             }
-        } else if savedValue == nil {
-            authManagerLogger.notice("No saved server (test keychain) — entering unconfigured state")
+        } catch {
+            authManagerLogger.error(
+                "Keychain read failed for server_url — treating as unconfigured (error: \(error.localizedDescription, privacy: .private))"
+            )
         }
 
         state = .unconfigured
